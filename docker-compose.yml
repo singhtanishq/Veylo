@@ -1,0 +1,123 @@
+# Veylo — local development infrastructure.
+#
+# Default services (docker compose up -d): postgres, redis, mailpit.
+# The api + web services build the full application images and live under the
+# `full` profile: docker compose --profile full up -d
+#
+# Ports (local development):
+#   Next.js        3000
+#   Go API         8080
+#   PostgreSQL     5432
+#   Redis          6379
+#   Mailpit SMTP   1025
+#   Mailpit Web    8025
+
+name: veylo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: veylo-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-veylo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-veylo_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-veylo}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-veylo} -d ${POSTGRES_DB:-veylo}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [veylo-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: veylo-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [veylo-net]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: veylo-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 8025"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [veylo-net]
+
+  # ---- Full application containers (optional profile) ----
+  api:
+    profiles: ["full"]
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: veylo-api
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-veylo}:${POSTGRES_PASSWORD:-veylo_local_dev}@postgres:5432/${POSTGRES_DB:-veylo}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM: "Veylo <no-reply@veylo.local>"
+      APP_BASE_URL: http://localhost:3000
+      STORAGE_PATH: /data/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads-data:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [veylo-net]
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    container_name: veylo-web
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks: [veylo-net]
+
+volumes:
+  postgres-data:
+  redis-data:
+  mailpit-data:
+  uploads-data:
+
+networks:
+  veylo-net:
+    driver: bridge
