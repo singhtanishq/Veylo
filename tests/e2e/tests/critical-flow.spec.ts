@@ -15,6 +15,12 @@ import {
 
 const API = process.env.E2E_API_URL ?? "http://localhost:8080";
 
+// Bring the page to the foreground: CI runners can freeze background pages,
+ // stalling their WebSocket processing until refocused.
+async function activate(page: Page) {
+  await page.bringToFront();
+}
+
 async function loginAs(contextBrowser: { newPage: () => Promise<Page> } | any, identifier: string, password: string): Promise<Page> {
   const page = await contextBrowser.newPage();
   await page.goto("/login");
@@ -70,15 +76,19 @@ test("critical end-to-end journey", async ({ browser }) => {
 
     // Bob opens the conversation and sees the message without any reload.
     await bob.page.goto(dmUrl);
+    await activate(bob.page);
     await expect(bob.page.getByText("Hey Bob, realtime hello from Alice! 🚀").last()).toBeVisible({ timeout: 15_000 });
 
     // Bob reads (auto ack) → Alice sees the read receipt.
+    await activate(alice.page);
     await expect
       .poll(async () => alice.page.getByLabel("Read by everyone").count(), { timeout: 20_000 })
       .toBeGreaterThan(0);
 
     // Bob replies; Alice receives it live.
+    await activate(bob.page);
     await sendMessage(bob.page, "Got it instantly — replies work too ✨");
+    await activate(alice.page);
     await expect(alice.page.getByText("Got it instantly — replies work too ✨").last()).toBeVisible({
       timeout: 15_000,
     });
@@ -104,6 +114,7 @@ test("critical end-to-end journey", async ({ browser }) => {
     await expect(alice.page.getByText("👍").first()).toBeVisible({ timeout: 10_000 });
 
     // Bob sees the reaction arrive (reaction.added fanout → cache refresh).
+    await activate(bob.page);
     await expect(bob.page.getByText("👍").first()).toBeVisible({ timeout: 15_000 });
 
     await ctxA.close();
@@ -145,6 +156,7 @@ test("critical end-to-end journey", async ({ browser }) => {
     await sendMessage(alice.page, "Here is the file you asked for");
 
     // Image bubbles render the picture + caption (filename shows in documents).
+    await activate(bob.page);
     await expect(bob.page.getByText("Here is the file you asked for").last()).toBeVisible({ timeout: 15_000 });
     await expect(bob.page.locator('a[href*="/download"]').last()).toBeVisible({ timeout: 15_000 });
 
@@ -169,9 +181,11 @@ test("critical end-to-end journey", async ({ browser }) => {
     await expect(alice.page.getByText('created the group "E2E Launch Crew"').first()).toBeVisible({ timeout: 15_000 });
 
     // Bob receives the group live.
+    await activate(bob.page);
     await expect(bob.page.getByText("E2E Launch Crew").first()).toBeVisible({ timeout: 15_000 });
 
     await sendMessage(alice.page, "Welcome to the crew, Bob!");
+    await activate(bob.page);
     await expect(bob.page.getByText("Welcome to the crew, Bob!").last()).toBeVisible({ timeout: 15_000 });
 
     // Alice adds Charlie through the details panel.
@@ -183,9 +197,12 @@ test("critical end-to-end journey", async ({ browser }) => {
     await expect(alice.page.getByText("added Charlie Test").first()).toBeVisible({ timeout: 15_000 });
 
     // Charlie sees the group and can send.
+    await activate(charlie.page);
     await expect(charlie.page.getByText("E2E Launch Crew").first()).toBeVisible({ timeout: 15_000 });
     await charlie.page.getByRole("button", { name: /E2E Launch Crew/ }).first().click();
+    await activate(charlie.page);
     await sendMessage(charlie.page, "Charlie reporting in 🫡");
+    await activate(bob.page);
     await expect(bob.page.getByText("Charlie reporting in 🫡").last()).toBeVisible({ timeout: 15_000 });
 
     await ctxA.close();
@@ -230,6 +247,7 @@ test("critical end-to-end journey", async ({ browser }) => {
     await page2.goto(dmUrl);
 
     await sendMessage(page1, "Multi-device hello from session 1 🖥️📱");
+    await activate(page2);
     await expect(page2.getByText("Multi-device hello from session 1 🖥️📱").last()).toBeVisible({
       timeout: 15_000,
     });

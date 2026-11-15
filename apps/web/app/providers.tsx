@@ -19,6 +19,20 @@ const RealtimeBridge = () => {
   const setPresence = useChatStore((s) => s.setPresence);
   const markTyping = useChatStore((s) => s.markTyping);
 
+  // When the tab becomes visible again (background pages can be frozen by the
+  // browser), re-sync server state so nothing stale lingers.
+  React.useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [queryClient]);
+
   React.useEffect(() => {
     realtime.setStateListener(setConnection);
 

@@ -18,6 +18,7 @@ const DEDUP_CACHE_SIZE = 600;
 
 class RealtimeClient {
   private ws: WebSocket | null = null;
+  private connecting = false; // guards the async ticket+handshake window
   private handlers = new Set<Handler>();
   private stateListeners = new Set<(state: ConnectionState) => void>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,7 +41,8 @@ class RealtimeClient {
   }
 
   connect() {
-    if (this.disposed || this.ws) return;
+    if (this.disposed || this.ws || this.connecting) return;
+    this.connecting = true;
     this.setState("connecting");
     this.open();
   }
@@ -50,6 +52,7 @@ class RealtimeClient {
       const { ticket } = await api.wsTicket();
       const wsUrl = wsEndpoint();
       const ws = new WebSocket(`${wsUrl}?ticket=${encodeURIComponent(ticket)}`);
+      this.connecting = false;
       this.ws = ws;
 
       ws.onopen = () => {
@@ -87,6 +90,7 @@ class RealtimeClient {
       };
     } catch {
       // Ticket fetch failed (offline / signed out) — retry with backoff.
+      this.connecting = false;
       this.setState("disconnected");
       this.scheduleReconnect();
     }
