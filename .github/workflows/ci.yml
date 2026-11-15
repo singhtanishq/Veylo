@@ -159,6 +159,8 @@ jobs:
           SMTP_HOST: localhost
           SMTP_PORT: "1025"
           STORAGE_PATH: ${{ runner.temp }}/veylo-uploads
+          RATE_REGISTER_PER_HOUR: "500"
+          RATE_LOGIN_PER_5MIN: "300"
         run: |
           go build -o bin/api ./cmd/api
           nohup ./bin/api > /tmp/veylo-api.log 2>&1 &

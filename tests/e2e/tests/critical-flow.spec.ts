@@ -180,9 +180,13 @@ test("critical end-to-end journey", async ({ browser }) => {
     await alice.page.getByRole("button", { name: "Create group" }).click();
     await expect(alice.page.getByText('created the group "E2E Launch Crew"').first()).toBeVisible({ timeout: 15_000 });
 
-    // Bob receives the group live.
+    // Bob receives the group live (conversation.created fanout).
     await activate(bob.page);
     await expect(bob.page.getByText("E2E Launch Crew").first()).toBeVisible({ timeout: 15_000 });
+
+    // Bob opens the group and receives Alice's message live in the open chat.
+    await bob.page.getByRole("button", { name: /E2E Launch Crew/ }).first().click();
+    await expect(bob.page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 10_000 });
 
     await sendMessage(alice.page, "Welcome to the crew, Bob!");
     await activate(bob.page);
