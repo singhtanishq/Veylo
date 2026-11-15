@@ -1,0 +1,22 @@
+{
+  "name": "veylo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Veylo — Conversations without boundaries. A real-time communication platform.",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @veylo/web dev",
+    "build:web": "pnpm --filter @veylo/web build",
+    "lint:web": "pnpm --filter @veylo/web lint",
+    "typecheck:web": "pnpm --filter @veylo/web typecheck",
+    "test:web": "pnpm --filter @veylo/web test",
+    "test:e2e": "pnpm --filter @veylo/e2e test",
+    "api:dev": "cd services/api && go run ./cmd/api",
+    "api:test": "cd services/api && go test ./...",
+    "api:vet": "cd services/api && go vet ./...",
+    "api:build": "cd services/api && go build -o bin/api ./cmd/api"
+  }
+}

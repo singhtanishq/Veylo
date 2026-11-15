@@ -1,1 +1,144 @@
+# ============================================================
+# PRIVATE MASTER INSTRUCTIONS
+# ============================================================
 VEYLO.md
+
+# ============================================================
+# ENVIRONMENT VARIABLES AND SECRETS
+# ============================================================
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+secrets/
+private/
+credentials/
+credentials.json
+service-account.json
+
+# ============================================================
+# NODE / NEXT.JS
+# ============================================================
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.vercel/
+
+# ============================================================
+# GO
+# ============================================================
+*.exe
+*.test
+*.out
+/vendor/
+services/api/bin/
+
+# ============================================================
+# PYTHON
+# ============================================================
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.eggs/
+wheels/
+
+# ============================================================
+# LOCAL DATABASES
+# ============================================================
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+postgres-data/
+database-data/
+redis-data/
+volumes/
+
+# ============================================================
+# LOCAL MEDIA AND USER UPLOADS
+# ============================================================
+uploads/
+storage/*
+!storage/.gitkeep
+storage-data/
+media/
+private-media/
+user-uploads/
+local-uploads/
+private-uploads/
+attachment-cache/
+!storage/.gitkeep
+
+# ============================================================
+# MESSAGE AND SESSION DATA
+# ============================================================
+local-message-data/
+session-data/
+user-data/
+private-data/
+message-exports/
+chat-exports/
+
+# ============================================================
+# LOGS
+# ============================================================
+logs/
+*.log
+*.log.*
+*.trace
+tmp/
+temp/
+nohup.out
+
+# ============================================================
+# TEST OUTPUT
+# ============================================================
+test-results/
+playwright-report/
+playwright/.cache/
+artifacts/
+*.junit.xml
+*.lcov
+
+# ============================================================
+# EDITORS AND OPERATING SYSTEM
+# ============================================================
+.DS_Store
+.AppleDouble
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# BUILD AND DEPLOYMENT
+# ============================================================
+.cache/
+.netlify/
