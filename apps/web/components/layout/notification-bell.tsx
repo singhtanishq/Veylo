@@ -67,7 +67,7 @@ export function NotificationBell() {
         </div>
         <div className="max-h-[380px] overflow-y-auto">
           {(notifications ?? []).length === 0 ? (
-            <p className="px-4 py-10 text-center text-xs text-muted">Nothing yet — you're all caught up.</p>
+            <p className="px-4 py-10 text-center text-xs text-muted">Nothing yet — you&apos;re all caught up.</p>
           ) : (
             <ul>
               {(notifications ?? []).slice(0, 12).map((n: Notification) => {
