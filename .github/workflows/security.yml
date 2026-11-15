@@ -26,6 +26,9 @@ jobs:
   dependencies:
     name: Dependency scanning (Trivy)
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
