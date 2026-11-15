@@ -123,7 +123,9 @@ export function useConversationMutation<TVars>(
   });
 }
 
-// Flatten an infinite messages query into a single ordered list.
+// Flatten an infinite messages query into a single list ordered by the
+// server-authoritative sequence (defensive: page assembly order never
+// affects display order).
 export function flattenMessages(pages: { messages: Message[] }[] | undefined): Message[] {
   if (!pages) return [];
   const seen = new Set<string>();
@@ -135,5 +137,6 @@ export function flattenMessages(pages: { messages: Message[] }[] | undefined): M
       out.push(m);
     }
   }
+  out.sort((a, b) => a.seq - b.seq);
   return out;
 }

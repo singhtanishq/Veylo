@@ -77,6 +77,9 @@ func main() {
 	if err := seedNotifications(ctx, pool, ids); err != nil {
 		fatal("seed notifications", err)
 	}
+	if err := seedExtras(ctx, pool, ids); err != nil {
+		fatal("seed extras", err)
+	}
 
 	_ = convDM
 	_ = convGroup
@@ -245,6 +248,17 @@ func seedDirectConversations(ctx context.Context, pool *pgxpool.Pool, ids map[st
 	}
 	out["alice-bob"] = dmAB
 
+	// Idempotency: skip message seeding when this conversation already has
+	// history (re-running the seed must not duplicate the timeline).
+	var existingMsgs int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM messages WHERE conversation_id = $1`, dmAB).Scan(&existingMsgs); err != nil {
+		return nil, err
+	}
+	if existingMsgs > 0 {
+		return out, nil
+	}
+
 	type seeded struct {
 		msgID uuid.UUID
 		seq   int64
@@ -338,33 +352,40 @@ func seedDirectConversations(ctx context.Context, pool *pgxpool.Pool, ids map[st
 		return nil, err
 	}
 	out["alice-charlie"] = dmAC
-	if _, _, err := addMessage(ctx, pool, dmAC, ids["charlie"], "text",
-		"Morning! The standup notes are in the doc — tl;dr we're on track 🚀",
-		now.Add(20*time.Minute), nil); err != nil {
+	var acMsgs int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM messages WHERE conversation_id = $1`, dmAC).Scan(&acMsgs); err != nil {
 		return nil, err
 	}
-	if _, _, err := addMessage(ctx, pool, dmAC, ids["alice"], "text",
-		"Great news. I'll review the doc after lunch.", now.Add(25*time.Minute), nil); err != nil {
-		return nil, err
-	}
-	// One unread from Charlie for Alice.
-	if _, _, err := addMessage(ctx, pool, dmAC, ids["charlie"], "text",
-		"Oh also — taking the team to coffee later, you in? ☕",
-		now.Add(30*time.Minute), nil); err != nil {
-		return nil, err
-	}
-	// Advance Charlie's read cursor so the last message counts as unread only for Alice.
-	if _, err := pool.Exec(ctx, `
+	if acMsgs == 0 {
+		if _, _, err := addMessage(ctx, pool, dmAC, ids["charlie"], "text",
+			"Morning! The standup notes are in the doc — tl;dr we're on track 🚀",
+			now.Add(20*time.Minute), nil); err != nil {
+			return nil, err
+		}
+		if _, _, err := addMessage(ctx, pool, dmAC, ids["alice"], "text",
+			"Great news. I'll review the doc after lunch.", now.Add(25*time.Minute), nil); err != nil {
+			return nil, err
+		}
+		// One unread from Charlie for Alice.
+		if _, _, err := addMessage(ctx, pool, dmAC, ids["charlie"], "text",
+			"Oh also — taking the team to coffee later, you in? ☕",
+			now.Add(30*time.Minute), nil); err != nil {
+			return nil, err
+		}
+		// Advance Charlie's read cursor so the last message counts as unread only for Alice.
+		if _, err := pool.Exec(ctx, `
 		UPDATE message_read_cursors SET delivered_seq = 2, read_seq = 2
 		WHERE conversation_id = $1 AND user_id = $2
 	`, dmAC, ids["charlie"]); err != nil {
-		return nil, err
-	}
-	if _, err := pool.Exec(ctx, `
+			return nil, err
+		}
+		if _, err := pool.Exec(ctx, `
 		UPDATE message_read_cursors SET delivered_seq = 1, read_seq = 1
 		WHERE conversation_id = $1 AND user_id = $2
 	`, dmAC, ids["alice"]); err != nil {
-		return nil, err
+			return nil, err
+		}
 	}
 
 	// Bob ↔ Charlie for graph completeness.
@@ -373,10 +394,17 @@ func seedDirectConversations(ctx context.Context, pool *pgxpool.Pool, ids map[st
 		return nil, err
 	}
 	out["bob-charlie"] = dmBC
-	if _, _, err := addMessage(ctx, pool, dmBC, ids["bob"], "text",
-		"Pushed the websocket reconnect fix — exponential backoff works like a charm now.",
-		now.Add(40*time.Minute), nil); err != nil {
+	var bcMsgs int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM messages WHERE conversation_id = $1`, dmBC).Scan(&bcMsgs); err != nil {
 		return nil, err
+	}
+	if bcMsgs == 0 {
+		if _, _, err := addMessage(ctx, pool, dmBC, ids["bob"], "text",
+			"Pushed the websocket reconnect fix — exponential backoff works like a charm now.",
+			now.Add(40*time.Minute), nil); err != nil {
+			return nil, err
+		}
 	}
 
 	return out, nil
@@ -505,6 +533,61 @@ func seedNotifications(ctx context.Context, pool *pgxpool.Pool, ids map[string]u
 		`, ids[s.user], s.typ, s.title, s.body, ids[s.actor]); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// seedExtras adds a pending contact request and a short David DM so every
+// settings/contact surface has realistic content.
+func seedExtras(ctx context.Context, pool *pgxpool.Pool, ids map[string]uuid.UUID) error {
+	// Pending incoming request for David from Charlie.
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO contact_requests (requester_id, addressee_id, message)
+		VALUES ($1, $2, 'Hey David! We met at the meetup — would love to stay in touch.')
+		ON CONFLICT (requester_id, addressee_id) DO NOTHING
+	`, ids["charlie"], ids["david"]); err != nil {
+		return err
+	}
+	// David also has a pending outgoing request to nobody yet; fine.
+
+	// Short Alice <-> David DM: one read message + one unread for Alice.
+	dmAD, err := ensureDirect(ctx, pool, ids["alice"], ids["david"])
+	if err != nil {
+		return err
+	}
+	var adMsgs int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM messages WHERE conversation_id = $1`, dmAD).Scan(&adMsgs); err != nil {
+		return err
+	}
+	if adMsgs > 0 {
+		return nil
+	}
+	now := time.Now().UTC().Add(-45 * time.Minute)
+	if _, _, err := addMessage(ctx, pool, dmAD, ids["david"], "text",
+		"Alice! The launch checklist link stopped working — got a spare?", now, nil); err != nil {
+		return err
+	}
+	if _, _, err := addMessage(ctx, pool, dmAD, ids["alice"], "text",
+		"Sending it over in a sec — congrats on the release 🎉", now.Add(3*time.Minute), nil); err != nil {
+		return err
+	}
+	if _, _, err := addMessage(ctx, pool, dmAD, ids["david"], "text",
+		"Thanks! Also — coffee when you're back in town? ☕", now.Add(6*time.Minute), nil); err != nil {
+		return err
+	}
+	// Alice read up to seq 2; David's message (seq 3) stays unread for Alice.
+	if _, err := pool.Exec(ctx, `
+		UPDATE message_read_cursors SET delivered_seq = 2, read_seq = 2
+		WHERE conversation_id = $1 AND user_id = $2
+	`, dmAD, ids["alice"]); err != nil {
+		return err
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE message_read_cursors SET delivered_seq = 3, read_seq = 3
+		WHERE conversation_id = $1 AND user_id = $2
+	`, dmAD, ids["david"]); err != nil {
+		return err
 	}
 	return nil
 }

@@ -22,6 +22,7 @@ import { realtime } from "@/lib/ws";
 import { useMe } from "@/hooks/use-queries";
 import { useChatStore } from "@/stores/chat";
 import { Avatar, Tooltip } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import {
   Dropdown,
   DropdownTrigger,
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <VeyloMark />
         </Link>
         <div className="flex flex-1 flex-col items-center gap-1.5">
+          <NotificationBell />
           {NAV.map((item) => {
             const active = item.match(pathname);
             return (
