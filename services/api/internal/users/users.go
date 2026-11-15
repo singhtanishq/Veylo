@@ -54,11 +54,17 @@ type PublicUser struct {
 // the router; every handler here requires an authenticated session.
 func (h *Handler) Routes(r chi.Router) {
 	r.Get("/users/search", h.search)
-	r.Get("/users/username/availability", h.usernameAvailability)
 	r.Get("/users/me", h.me)
 	r.Patch("/users/me", h.updateMe)
 	r.Post("/users/me/phone", h.setPhone)
 	r.Get("/users/{userID}", h.getProfile)
+}
+
+// PublicRoutes registers endpoints available without a session (rate limited
+// at the policy level). Username availability mirrors public identifier
+// semantics: usernames are already discoverable via search.
+func (h *Handler) PublicRoutes(r chi.Router) {
+	r.Get("/users/username/availability", h.usernameAvailability)
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +246,10 @@ func (h *Handler) setPhone(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) usernameAvailability(w http.ResponseWriter, r *http.Request) {
+	if !h.limits.Allow("avail:"+api.ClientIP(r), ratelimit.PolicySearch.PerSec, ratelimit.PolicySearch.Burst) {
+		api.WriteError(w, r, api.ErrRateLimited)
+		return
+	}
 	username := auth.NormalizeUsername(r.URL.Query().Get("username"))
 	if !auth.ValidUsername(username) {
 		api.WriteJSON(w, r, http.StatusOK, map[string]any{

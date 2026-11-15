@@ -401,7 +401,7 @@ function GalleryTab({ conversationId }: { conversationId: string }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={attachmentUrl(item.attachment.thumbnail_url ?? item.attachment.download_url) ?? ""}
-                    alt={item.attachment.name}
+                    alt={item.attachment.file_name}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -429,7 +429,7 @@ function GalleryTab({ conversationId }: { conversationId: string }) {
                   className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-surface-2"
                 >
                   <FileText size={15} className="text-primary" />
-                  <span className="min-w-0 flex-1 truncate text-[12.5px]">{item.attachment.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-[12.5px]">{item.attachment.file_name}</span>
                   <span className="text-[10px] text-muted">{formatBytes(item.attachment.size_bytes)}</span>
                 </a>
               </li>
@@ -449,7 +449,7 @@ function GalleryTab({ conversationId }: { conversationId: string }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={attachmentUrl(preview.attachment.download_url) ?? ""}
-                alt={preview.attachment.name}
+                alt={preview.attachment.file_name}
                 className="max-h-[75vh] max-w-full rounded-xl object-contain"
               />
             ) : (
@@ -462,7 +462,7 @@ function GalleryTab({ conversationId }: { conversationId: string }) {
             )}
             <figcaption className="mt-3 flex items-center justify-between text-xs text-white/70">
               <span>
-                {preview.attachment.name} · {formatBytes(preview.attachment.size_bytes)} · {formatRelative(preview.created_at)}
+                {preview.attachment.file_name} · {formatBytes(preview.attachment.size_bytes)} · {formatRelative(preview.created_at)}
               </span>
               <a
                 href={attachmentUrl(preview.attachment.download_url) ?? "#"}

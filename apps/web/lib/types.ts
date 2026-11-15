@@ -102,7 +102,7 @@ export interface ReplyPreview {
 
 export interface AttachmentMeta {
   id: string;
-  name: string;
+  file_name: string;
   mime_type: string;
   kind: "image" | "video" | "audio" | "voice" | "document";
   size_bytes: number;

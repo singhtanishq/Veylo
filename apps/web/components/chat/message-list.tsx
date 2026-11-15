@@ -8,6 +8,7 @@ import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, Check, CheckCheck } from "lucide-react";
 import { useChatStore } from "@/stores/chat";
+import { api } from "@/lib/api";
 import { useInfiniteMessages, flattenMessages } from "@/hooks/use-queries";
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { formatDayLabel } from "@/lib/utils";
@@ -86,6 +87,34 @@ export function MessageList({
     overscan: 12,
     getItemKey: (i) => rows[i].key,
   });
+
+  // Read acks: while the conversation is open and the tab visible, advance the
+  // read cursor to the newest loaded message (monotonic, idempotent server-side).
+  const maxSeq = React.useMemo(() => {
+    let max = 0;
+    for (const m of messages) if (m.seq > max) max = m.seq;
+    return max;
+  }, [messages]);
+
+  const ackedRef = React.useRef(0);
+  const connection = useChatStore((s) => s.connection);
+  React.useEffect(() => {
+    if (maxSeq <= 0) return;
+    const ack = () => {
+      if (document.visibilityState !== "visible") return;
+      if (ackedRef.current >= maxSeq) return;
+      // REST read-acks are deterministic (cookie-authenticated, no socket
+      // dependency) and the server fans out receipt events identically. The
+      // cursor update is monotonic and idempotent, so races are harmless.
+      ackedRef.current = maxSeq;
+      void api.markRead(conversationId, maxSeq).catch(() => {
+        ackedRef.current = 0; // allow retry on the next trigger
+      });
+    };
+    ack();
+    document.addEventListener("visibilitychange", ack);
+    return () => document.removeEventListener("visibilitychange", ack);
+  }, [maxSeq, conversationId]);
 
   // Stick to bottom on first load.
   const initialScroll = React.useRef(false);

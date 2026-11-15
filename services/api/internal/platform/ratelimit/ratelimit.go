@@ -5,6 +5,8 @@
 package ratelimit
 
 import (
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -79,14 +81,37 @@ type Policy struct {
 	Burst  int
 }
 
+// perHourFromEnv builds an hourly policy from an env override so deployments
+// (and E2E runs) can tune limits without code changes.
+func perHourFromEnv(envKey string, fallback int) Policy {
+	n := fallback
+	if v := os.Getenv(envKey); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	return Policy{PerSec: float64(n) / 3600, Burst: n}
+}
+
+// perWindowFromEnv builds a policy of `n` events per `window` from env.
+func perWindowFromEnv(envKey string, fallback int, window time.Duration) Policy {
+	n := fallback
+	if v := os.Getenv(envKey); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	return Policy{PerSec: float64(n) / window.Seconds(), Burst: n}
+}
+
 var (
-	PolicyRegister  = Policy{PerSec: 5.0 / 3600, Burst: 5}   // 5 per hour
-	PolicyLogin     = Policy{PerSec: 10.0 / 300, Burst: 10}  // 10 per 5 min
-	PolicyAuthed    = Policy{PerSec: 100.0 / 60, Burst: 100} // 100 per min
-	PolicySearch    = Policy{PerSec: 60.0 / 60, Burst: 30}   // 60 per min
-	PolicyVerify    = Policy{PerSec: 3.0 / 600, Burst: 3}    // 3 per 10 min
-	PolicyReset     = Policy{PerSec: 5.0 / 3600, Burst: 5}   // 5 per hour
-	PolicyMessageWS = Policy{PerSec: 60.0 / 60, Burst: 60}   // 60 msg/min per user
-	PolicyTyping    = Policy{PerSec: 1.0 / 2.5, Burst: 3}    // typing ~2.5s throttle
-	PolicyAttach    = Policy{PerSec: 20.0 / 60, Burst: 10}   // 20 uploads/min
+	PolicyRegister  = perHourFromEnv("RATE_REGISTER_PER_HOUR", 20)               // per IP per hour
+	PolicyLogin     = perWindowFromEnv("RATE_LOGIN_PER_5MIN", 30, 5*time.Minute) // per IP / per identifier
+	PolicyAuthed    = Policy{PerSec: 100.0 / 60, Burst: 100}                     // 100 per min
+	PolicySearch    = Policy{PerSec: 60.0 / 60, Burst: 30}                       // 60 per min
+	PolicyVerify    = Policy{PerSec: 3.0 / 600, Burst: 3}                        // 3 per 10 min
+	PolicyReset     = Policy{PerSec: 5.0 / 3600, Burst: 5}                       // 5 per hour
+	PolicyMessageWS = Policy{PerSec: 60.0 / 60, Burst: 60}                       // 60 msg/min per user
+	PolicyTyping    = Policy{PerSec: 1.0 / 2.5, Burst: 3}                        // typing ~2.5s throttle
+	PolicyAttach    = Policy{PerSec: 20.0 / 60, Burst: 10}                       // 20 uploads/min
 )

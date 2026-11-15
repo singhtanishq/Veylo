@@ -203,16 +203,16 @@ export function Composer({
               <div key={a.id} className="group relative flex items-center gap-2 rounded-xl bg-surface-2 py-1.5 pl-2 pr-7">
                 {a.kind === "image" && a.thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}${a.thumbnail_url}`} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}${a.thumbnail_url}`} alt={a.file_name} className="h-8 w-8 rounded-lg object-cover" />
                 ) : (
                   <FileText size={16} className="text-primary" />
                 )}
-                <span className="max-w-36 truncate text-xs">{a.name}</span>
+                <span className="max-w-36 truncate text-xs">{a.file_name}</span>
                 <span className="text-[10px] text-muted">{formatBytes(a.size_bytes)}</span>
                 <button
                   onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
                   className="absolute right-1.5 text-muted hover:text-danger"
-                  aria-label={`Remove ${a.name}`}
+                  aria-label={`Remove ${a.file_name}`}
                 >
                   <X size={13} />
                 </button>

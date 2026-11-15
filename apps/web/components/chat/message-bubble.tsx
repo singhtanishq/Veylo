@@ -334,7 +334,13 @@ function BubbleContent({ message: m, mine }: { message: Message; mine: boolean }
     case "image":
     case "video":
       return (
-        <MediaContent attachments={m.attachments ?? []} mine={mine} type={m.type} />
+        <MediaContent attachments={m.attachments ?? []} mine={mine} type={m.type}>
+          {m.text && (
+            <p className="whitespace-pre-wrap break-words px-1.5 pb-0.5 pt-1.5 text-[14.5px]">
+              {m.text}
+            </p>
+          )}
+        </MediaContent>
       );
     case "voice":
     case "audio":
@@ -346,7 +352,17 @@ function BubbleContent({ message: m, mine }: { message: Message; mine: boolean }
   }
 }
 
-function MediaContent({ attachments, mine, type }: { attachments: AttachmentMeta[]; mine: boolean; type: string }) {
+function MediaContent({
+  attachments,
+  mine,
+  type,
+  children,
+}: {
+  attachments: AttachmentMeta[];
+  mine: boolean;
+  type: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       {attachments.map((a) => {
@@ -356,7 +372,7 @@ function MediaContent({ attachments, mine, type }: { attachments: AttachmentMeta
             <a key={a.id} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
               <Image
                 src={url}
-                alt={a.name}
+                alt={a.file_name}
                 width={a.width ?? 480}
                 height={a.height ?? 320}
                 className="max-h-[320px] w-auto max-w-full rounded-xl object-cover transition-transform hover:scale-[1.01]"
@@ -380,6 +396,7 @@ function MediaContent({ attachments, mine, type }: { attachments: AttachmentMeta
       {attachments.length === 0 && (
         <p className={cn("text-sm", mine ? "text-white/70" : "text-muted")}>Attachment unavailable</p>
       )}
+      {children}
     </div>
   );
 }
@@ -402,7 +419,7 @@ function DocumentContent({ attachments, mine }: { attachments: AttachmentMeta[];
             <FileText size={17} className={mine ? "text-white" : "text-primary"} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-medium">{a.name}</span>
+            <span className="block truncate text-[13px] font-medium">{a.file_name}</span>
             <span className={cn("block text-[11px]", mine ? "text-white/60" : "text-muted")}>
               {formatBytes(a.size_bytes)}
             </span>

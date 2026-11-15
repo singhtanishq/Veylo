@@ -114,6 +114,7 @@ func Build(d Deps) *App {
 
 	r.Route("/v1", func(r chi.Router) {
 		authH.Routes(r)
+		usersH.PublicRoutes(r)
 		r.Group(func(r chi.Router) {
 			r.Use(authH.RequireAuth)
 			usersH.Routes(r)

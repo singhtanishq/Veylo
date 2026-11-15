@@ -81,8 +81,12 @@ func TestUsernameAvailability(t *testing.T) {
 	resetDB(t)
 	u := registerNewUser(t, "takenuser")
 
-	// Availability checks are authenticated (anti-enumeration).
-	newClient().mustJSON(t, "GET", "/v1/users/username/availability?username=freshname", nil, http.StatusUnauthorized)
+	// Availability is a public endpoint (rate limited per IP; usernames are
+	// public identifiers discoverable via search).
+	avAnon := asMap(t, newClient().mustJSON(t, "GET", "/v1/users/username/availability?username=takenuser", nil, http.StatusOK))
+	if avAnon["available"] != false {
+		t.Fatalf("anonymous availability check failed")
+	}
 
 	av := asMap(t, u.C.mustJSON(t, "GET", "/v1/users/username/availability?username=takenuser", nil, http.StatusOK))
 	if av["available"] != false {

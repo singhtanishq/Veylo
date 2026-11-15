@@ -45,7 +45,7 @@ export function ChatWindow({
   conversationId: string;
   onClose: () => void;
 }) {
-  const { data: conversation, isLoading } = useConversation(conversationId);
+  const { data: conversation, isLoading, error } = useConversation(conversationId);
   const otherPresence = useOtherPresence(conversation?.other_user?.id, conversation?.other_user?.online);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [replyTo, setReplyTo] = React.useState<{ id: string; preview: string; sender: string } | null>(null);
@@ -70,10 +70,30 @@ export function ChatWindow({
   }
 
 
-  if (isLoading || !conversation) {
+  if (isLoading || (!conversation && !error)) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="vy-skeleton h-24 w-64 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (error || !conversation) {
+    // Not a member (or the conversation is gone): never leak message content.
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-muted">
+          <Info size={24} />
+        </div>
+        <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-sora)" }}>
+          Conversation unavailable
+        </h2>
+        <p className="max-w-sm text-sm text-muted">
+          You are not a member of this conversation, or it no longer exists.
+        </p>
+        <Button variant="soft" onClick={onClose}>
+          Back to conversations
+        </Button>
       </div>
     );
   }

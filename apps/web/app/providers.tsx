@@ -35,6 +35,13 @@ const RealtimeBridge = () => {
           break;
         case "message.created": {
           const msg = env.data?.message as Message | undefined;
+          if (msg && !msg.is_mine) {
+            // Delivery ack: a recipient session received the event.
+            realtime.send("receipt.deliver", {
+              conversation_id: msg.conversation_id,
+              max_seq: msg.seq,
+            });
+          }
           if (msg) {
             queryClient.setQueryData<{ pages: { messages: Message[] }[]; pageParams: unknown[] }>(
               ["messages", msg.conversation_id],
@@ -115,6 +122,10 @@ const RealtimeBridge = () => {
           break;
         case "reaction.added":
         case "reaction.removed":
+          if (env.data?.conversation_id) {
+            queryClient.invalidateQueries({ queryKey: ["messages", env.data.conversation_id] });
+          }
+          break;
         case "message.failed":
         case "notification.created":
         case "connection.error":
