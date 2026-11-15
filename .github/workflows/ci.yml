@@ -161,14 +161,12 @@ jobs:
           STORAGE_PATH: ${{ runner.temp }}/veylo-uploads
         run: |
           go build -o bin/api ./cmd/api
-          ./bin/api &
-          echo "PID=$!" >> $GITHUB_ENV
+          nohup ./bin/api > /tmp/veylo-api.log 2>&1 &
 
       - name: Start Web
         run: |
           pnpm --filter @veylo/web build
-          pnpm --filter @veylo/web start &
-          echo "WEB_PID=$!" >> $GITHUB_ENV
+          nohup pnpm --filter @veylo/web start > /tmp/veylo-web.log 2>&1 &
 
       - name: Wait for services
         run: |
@@ -184,6 +182,14 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:3000
         run: pnpm exec playwright test
+
+      - name: Dump service logs
+        if: always()
+        run: |
+          echo "--- API log (E2E window) ---"
+          cat /tmp/veylo-api.log || true
+          echo "--- Web log ---"
+          tail -50 /tmp/veylo-web.log || true
 
       - uses: actions/upload-artifact@v4
         if: always()
