@@ -453,3 +453,24 @@ func escapeLike(s string) string {
 func isEmailQuery(q string) bool {
 	return strings.Count(q, "@") == 1 && strings.Contains(q, ".") && !strings.HasPrefix(q, "@")
 }
+
+// ---------------------------------------------------------------------------
+// Avatar upload
+// ---------------------------------------------------------------------------
+
+// AvatarSetter lets the users handler store an uploaded avatar. Implemented
+// by the attachments handler to reuse validation/storage.
+type AvatarSetter interface {
+	StoreAvatar(ctx context.Context, userID uuid.UUID, file multipartFile, maxBytes int64) (attachmentID uuid.UUID, err error)
+}
+
+// multipartFile mirrors *multipart.FileHeader without importing multipart here.
+type multipartFile interface{}
+
+// SetAvatar wires an uploaded attachment id into the user profile.
+func (h *Handler) SetAvatar(ctx context.Context, userID, attachmentID uuid.UUID) error {
+	_, err := h.pool.Exec(ctx, `
+		UPDATE user_profiles SET avatar_attachment_id = $1, updated_at = now() WHERE user_id = $2
+	`, attachmentID, userID)
+	return err
+}

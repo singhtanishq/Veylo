@@ -70,6 +70,7 @@ type Member struct {
 	ID          string  `json:"id"`
 	Username    string  `json:"username"`
 	DisplayName string  `json:"display_name"`
+	About       *string `json:"about"`
 	AvatarURL   *string `json:"avatar_url"`
 	Role        string  `json:"role"`
 	Online      bool    `json:"online"`
@@ -1254,6 +1255,11 @@ func (h *Handler) IsMember(ctx context.Context, convID, userID uuid.UUID) (bool,
 	return ok, err
 }
 
+// MyRole is exported for other packages (attachments avatars).
+func (h *Handler) MyRole(ctx context.Context, convID, userID uuid.UUID) (string, string, error) {
+	return h.myRole(ctx, convID, userID)
+}
+
 func (h *Handler) myRole(ctx context.Context, convID, userID uuid.UUID) (string, string, error) {
 	var role, convType string
 	err := h.pool.QueryRow(ctx, `
@@ -1347,7 +1353,7 @@ func (h *Handler) assembleConversation(r *http.Request, convID, me uuid.UUID, co
 
 	// Load members with presence.
 	rows, err := h.pool.Query(ctx, `
-		SELECT m.user_id, u.username, p.display_name, p.avatar_attachment_id, m.role, m.joined_at,
+		SELECT m.user_id, u.username, p.display_name, p.about, p.avatar_attachment_id, m.role, m.joined_at,
 		       u.last_seen_at, s.online_visibility, s.last_seen_visibility
 		FROM conversation_members m
 		JOIN users u ON u.id = m.user_id
@@ -1365,6 +1371,7 @@ func (h *Handler) assembleConversation(r *http.Request, convID, me uuid.UUID, co
 		id          uuid.UUID
 		username    string
 		display     string
+		about       *string
 		avatarID    *uuid.UUID
 		role        string
 		joinedAt    time.Time
@@ -1375,7 +1382,7 @@ func (h *Handler) assembleConversation(r *http.Request, convID, me uuid.UUID, co
 	var members []memberRow
 	for rows.Next() {
 		var m memberRow
-		if err := rows.Scan(&m.id, &m.username, &m.display, &m.avatarID, &m.role, &m.joinedAt,
+		if err := rows.Scan(&m.id, &m.username, &m.display, &m.about, &m.avatarID, &m.role, &m.joinedAt,
 			&m.lastSeen, &m.onlineVis, &m.lastSeenVis); err != nil {
 			return nil, err
 		}
@@ -1387,6 +1394,7 @@ func (h *Handler) assembleConversation(r *http.Request, convID, me uuid.UUID, co
 			ID:          m.id.String(),
 			Username:    m.username,
 			DisplayName: m.display,
+			About:       m.about,
 			Role:        m.role,
 			JoinedAt:    m.joinedAt.UTC().Format(time.RFC3339),
 			IsMe:        m.id == me,

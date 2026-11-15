@@ -1,26 +1,193 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Veylo design tokens — violet brand over warm neutrals, light + dark.
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f7fa;
+  --surface: #ffffff;
+  --surface-2: #f1f1f6;
+  --surface-3: #e8e8ef;
+  --foreground: #17161d;
+  --muted: #6d6b78;
+  --border: #e4e3ec;
+  --ring: #8b7cf6;
+
+  --primary: #5b4fc4;
+  --primary-hover: #4a3fb0;
+  --primary-soft: #ece9fc;
+  --primary-foreground: #ffffff;
+
+  --accent: #e0b34d;
+  --success: #2e9e6b;
+  --danger: #d64545;
+  --warning: #d68f2e;
+
+  --bubble-own: #5b4fc4;
+  --bubble-own-foreground: #ffffff;
+  --bubble-other: #ffffff;
+  --bubble-other-foreground: #17161d;
+
+  --radius: 14px;
+}
+
+.dark {
+  --background: #0e0d13;
+  --surface: #17161d;
+  --surface-2: #1f1e27;
+  --surface-3: #292834;
+  --foreground: #ececf2;
+  --muted: #9a97a8;
+  --border: #2a2936;
+  --ring: #8b7cf6;
+
+  --primary: #7c6ef2;
+  --primary-hover: #8f83f5;
+  --primary-soft: #262042;
+  --primary-foreground: #ffffff;
+
+  --accent: #e0b34d;
+  --success: #3db87d;
+  --danger: #e06060;
+  --warning: #e0a040;
+
+  --bubble-own: #5b4fc4;
+  --bubble-own-foreground: #ffffff;
+  --bubble-other: #1f1e27;
+  --bubble-other-foreground: #ececf2;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+
+  --color-bubble-own: var(--bubble-own);
+  --color-bubble-own-foreground: var(--bubble-own-foreground);
+  --color-bubble-other: var(--bubble-other);
+  --color-bubble-other-foreground: var(--bubble-other-foreground);
+
+  --radius: var(--radius);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-sora);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* Slim, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 40%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Shared utilities
+   -------------------------------------------------------------------------- */
+
+.vy-focus {
+  outline: 2px solid color-mix(in srgb, var(--ring) 60%, transparent);
+  outline-offset: 2px;
+}
+
+@keyframes vy-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vy-animate-in {
+  animation: vy-fade-up 0.22s ease-out both;
+}
+
+@keyframes vy-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.vy-typing-dot {
+  animation: vy-typing-bounce 1.2s infinite;
+}
+.vy-typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.vy-typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes vy-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.vy-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: vy-shimmer 1.4s infinite linear;
 }

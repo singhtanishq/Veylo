@@ -51,6 +51,8 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Get("/attachments/{attachmentID}/download", h.download)
 	r.Get("/attachments/{attachmentID}/thumbnail", h.thumbnail)
 	r.Delete("/attachments/{attachmentID}", h.remove)
+	r.Post("/users/me/avatar", h.UploadAvatar)
+	r.Post("/conversations/{conversationID}/avatar", h.UploadConversationAvatar)
 }
 
 // Attachment is the API shape of uploaded media metadata.
@@ -366,4 +368,99 @@ func sanitizeCD(name string) string {
 		return "file"
 	}
 	return name
+}
+
+// StoreAvatar validates and stores an avatar image for a user, returning the
+// attachment id. Max 8 MB, images only.
+func (h *Handler) StoreAvatar(r *http.Request) (uuid.UUID, error) {
+	me := api.UserID(r.Context())
+	r.Body = http.MaxBytesReader(nil, r.Body, 8<<20)
+	if err := r.ParseMultipartForm(8 << 20); err != nil {
+		return uuid.Nil, api.Errf(http.StatusBadRequest, api.CodeBadRequest, "Expected multipart/form-data.", nil)
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		return uuid.Nil, api.Errf(http.StatusBadRequest, api.CodeBadRequest, "Missing `file` field.", nil)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, 8<<20))
+	if err != nil || len(data) == 0 {
+		return uuid.Nil, api.ErrUnsupported
+	}
+	ct, _ := sniffType(data)
+	if storage.KindForType(ct) != "image" {
+		return uuid.Nil, api.Errf(http.StatusUnsupportedMediaType, api.CodeUnsupportedMedia,
+			"Avatars must be images (PNG, JPEG, GIF or WebP).", nil)
+	}
+
+	sum := sha256.Sum256(data)
+	now := time.Now().UTC()
+	key := fmt.Sprintf("uploads/%04d/%02d/%s/avatar.png", now.Year(), now.Month(), uuid.NewString())
+	if err := h.store.Save(r.Context(), key, strings.NewReader(string(data)), int64(len(data))); err != nil {
+		return uuid.Nil, err
+	}
+
+	var attID uuid.UUID
+	err = h.pool.QueryRow(r.Context(), `
+		INSERT INTO attachments (owner_id, storage_key, file_name, mime_type, kind, size_bytes, sha256)
+		VALUES ($1, $2, 'avatar.png', $3, 'image', $4, $5)
+		RETURNING id
+	`, me, key, ct, len(data), hex.EncodeToString(sum[:])).Scan(&attID)
+	if err != nil {
+		_ = h.store.Delete(r.Context(), key)
+		return uuid.Nil, err
+	}
+	return attID, nil
+}
+
+// UploadAvatar handles POST /v1/users/me/avatar.
+func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	attID, err := h.StoreAvatar(r)
+	if err != nil {
+		api.WriteError(w, r, err)
+		return
+	}
+	me := api.UserID(r.Context())
+	if _, err := h.pool.Exec(r.Context(), `
+		UPDATE user_profiles SET avatar_attachment_id = $1, updated_at = now() WHERE user_id = $2
+	`, attID, me); err != nil {
+		api.WriteError(w, r, err)
+		return
+	}
+	url := "/v1/attachments/" + attID.String() + "/download"
+	api.WriteJSON(w, r, http.StatusOK, map[string]any{"avatar_url": url})
+}
+
+// UploadConversationAvatar handles POST /v1/conversations/{id}/avatar (admin+).
+func (h *Handler) UploadConversationAvatar(w http.ResponseWriter, r *http.Request) {
+	convID, err := uuid.Parse(chi.URLParam(r, "conversationID"))
+	if err != nil {
+		api.WriteError(w, r, api.ErrBadRequest)
+		return
+	}
+	me := api.UserID(r.Context())
+	role, convType, err := h.conv.MyRole(r.Context(), convID, me)
+	if err != nil {
+		api.WriteError(w, r, err)
+		return
+	}
+	_ = role
+	if convType != "group" {
+		api.WriteError(w, r, api.ErrForbidden)
+		return
+	}
+	attID, err := h.StoreAvatar(r)
+	if err != nil {
+		api.WriteError(w, r, err)
+		return
+	}
+	if _, err := h.pool.Exec(r.Context(), `
+		UPDATE conversations SET avatar_attachment_id = $1, updated_at = now() WHERE id = $2
+	`, attID, convID); err != nil {
+		api.WriteError(w, r, err)
+		return
+	}
+	url := "/v1/attachments/" + attID.String() + "/download"
+	api.WriteJSON(w, r, http.StatusOK, map[string]any{"avatar_url": url})
 }
