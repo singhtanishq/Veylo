@@ -163,6 +163,13 @@ jobs:
           go build -o bin/api ./cmd/api
           nohup ./bin/api > /tmp/veylo-api.log 2>&1 &
 
+      - name: Seed demo data (exercises the seeded flows in E2E)
+        working-directory: services/api
+        env:
+          DATABASE_URL: postgres://veylo:veylo_local_dev@localhost:5432/veylo?sslmode=disable
+          STORAGE_PATH: ${{ runner.temp }}/veylo-uploads
+        run: go run ./cmd/seed
+
       - name: Start Web
         run: |
           pnpm --filter @veylo/web build
